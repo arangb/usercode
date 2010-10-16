@@ -1,0 +1,308 @@
+# This is a bash script that compiles and runs all of the MC@NLO codes.
+# On your system, you need:
+#
+#    bash shell      AND      gmake
+#
+# which are rather standard (ask your system manager if they are not
+# available).
+#
+# HOW TO USE THIS SCRIPT:
+#  Look for "physical parameters" and "other input parameters" in
+#  in this file; they control all the inputs for the MC@NLO codes.
+#  After having modified them to suit your needs, execute this
+#  file from a bash shell. Notice that the only command in this
+#  file is 
+#     runMCatNLO
+#  which is what you need in order to obtain MC@NLO results. Other
+#  commands are available: see at the bottom of this file for a 
+#  list of them. In this version, they are all commented out; 
+#  uncomment them if you need them.
+#
+# WHAT THE USER MUST DO PRIOR TO RUNNING
+#  The files 
+#     mcatnlo_hwdriver.f   mcatnlo_hwlhin.f
+#  must be edited in order to insert the 'INCLUDE HERWIGXX.INC' command
+#  relevant to the version of HERWIG your are going to use. The file(s)
+#     mcatnlo_hwanXXX.f
+#  contain sample analysis routines, and must be edited for the same reason. 
+#  Notice, however, that these analysis routines are provided here to furnish 
+#  a ready-to-run package, but they are identical to standard HERWIG analysis
+#  routines, and should therefore be replaced with your analysis routines.
+#  In this case, you will simply set the variable HWUTI (in this file) equal 
+#  to the list of object files you need in your routines. 
+#  Finally, the variable HERWIGVER below must be set equal to the name
+#  of your preferred version of HERWIG (matching the one whose common
+#  blocks are included in the files above)
+
+
+#
+#!/bin/bash
+
+
+#
+#
+# physical parameters
+#
+#
+# CM energy 
+ECM=7000
+# renormalization scale factor 
+FREN=1
+# factorization scale factor 
+FFACT=1
+# mass of the heavy quark (bottom for IPROC=-1705, top otherwise, including
+# Higgs production)
+HVQMASS=4.95
+# width of the top. A negative entry will force the code to compute the width
+# at the LO in the SM, in ttbar and single top production and when the
+# tops decay
+TWIDTH=1.4
+# W mass 
+WMASS=80.42
+# W width. A negative entry will force the code to compute the width
+# at the LO in the SM, in single top production (Wt channel) when the
+# top and W decay, and in WW production when the W's decay
+WWIDTH=2.124
+# Z mass
+ZMASS=91.17
+# Z width
+ZWIDTH=2.495
+# branching ratio for Sum_j (top -> l nu_l b_j), with b_j any down-type
+# quark, and l a given lepton species. Lepton universality is assumed
+BRTOPTOLEP=0.1111
+# branching ratio for Sum_ij (top -> u d_i b_j), with d_i and b_j any 
+# down-type quarks. Flavour universality is assumed
+BRTOPTOHAD=0.3333
+# branching ratio for W -> l nu_l, with l a given lepton species. 
+# Lepton universality is assumed
+BRWTOLEP=0.1111
+# branching ratio for Sum_i (W -> u d_i), with d_i any 
+# down-type quarks. Flavour universality is assumed
+BRWTOHAD=0.3333
+# Higgs mass
+HGGMASS=120
+# Higgs width: MC@NLO does not compute the SM width associated with the
+# mass set in HGGMASS. The user must set the width by hand
+HGGWIDTH=0.0049
+# In the computation of the Higgs cross section at the Born level:
+# IBORNHGG=1 --> exact M_top dependence, IBORNHGG=2 --> M_top -> infinity
+IBORNHGG=1
+# When the mass of a particle P is distributed according to Breit-Wigner 
+# (which happens in production for the Drell Yan process if P is a W, Z,
+# or photon, and in decay if P is a top, a vector boson, or a Higgs),
+# the mass range is (if PGAMMAX>0)
+#    M0_P - PGAMMAX * WIDTH < M_P < M0_P + PGAMMAX * WIDTH
+# with M0_P the pole mass of P, and WIDTH its width. If PGAMMAX<0 then
+#                  PMASSINF < M_P < PMASSSUP
+# Valid shell variables correspond to
+#    P = V1, V2, T1, T2, H
+# for vector boson, top, and Higgs respectively. In the case of top decay,
+# the shell variables with prefix Vj are relevant to the W's emerging from 
+# the decay of the top whose shell variables have prefix Tj.
+# When there is only one vector boson or one top in the final state,
+# the relevant shell variables have prefix V1 or T1. In the case of
+# vector boson pair production, the prefixes (V1,V2) correspond to (W+,W-), 
+# (Z,Z), (W+,Z), and (W-,Z) for IPROC=-2850, -2860, -2870, and 2880 
+# respectively. In the case of ttbar production, (T1,T2) correspond 
+# to (t,tbar), and (V1,V2) to (W+,W-) emerging from (t,tbar) decays.
+# In the case of tW- production, T1 and V2 correspond to t and W- produced
+# in the hard reaction respectively (in version 3.4, off-shell effects are 
+# however not implemented yet), and V1 to the W+ emerging from the t decay
+V1GAMMAX=30
+V1MASSINF=0
+V1MASSSUP=0
+V2GAMMAX=30
+V2MASSINF=0
+V2MASSSUP=0
+T1GAMMAX=30
+T1MASSINF=0
+T1MASSSUP=0
+T2GAMMAX=30
+T2MASSINF=0
+T2MASSSUP=0
+HGAMMAX=30
+HMASSINF=0
+HMASSSUP=0
+# quark and gluon masses (used only by HERWIG)
+UMASS=0.32
+DMASS=0.32
+SMASS=0.5
+CMASS=1.55
+BMASS=4.95
+GMASS=0.75
+# absolute values of the CKM matrix elements; used for single-top production
+# and subsequent top decay, and for top decay in ttbar production. 
+# Set VUD=VUS=VUB=0 to use the defaults in the code
+VUD=0.9748
+VUS=0.2225
+VUB=0.0036
+VCD=0.2225
+VCS=0.9740
+VCB=0.041 
+VTD=0.009 
+VTS=0.0405
+VTB=0.9992
+# Set AEMRUN=YES to use running alpha_em, AEMRUN=NO to use the Thomson value
+AEMRUN=YES
+# process number; MC@NLO process codes are negative. A positive process
+# code may be used (executing runMC) to run standard HERWIG
+IPROC=-1705
+# vector boson code: IVCODE=-1,0,1 for W^-, Z, and W^+ respectively.
+# This variables is only used in WH and ZH production
+IVCODE=1
+# IL1CODE determines the identities of decay products of tops or 
+# vector bosons, when spin correlations are included.
+# Set IL1CODE=7 for undecayed vector bosons or tops. 
+# IL1CODE is relevant to WH, ZH, single-top, ttbar, and vector boson 
+# pair production; in the latter two cases, and in Wt production, the 
+# variable IL2CODE is also needed. See the manual for a list of valid 
+# values for IL1CODE and IL2CODE. In the case of VV, ttbar and tW 
+# production, (IL1CODE,IL2CODE) control the decays of (t,tbar), (t,W), 
+# (W+,W-), (Z,Z), (W+,Z), and (W-,Z) for IPROC=-1706, -2030, -2850, 
+# -2860, -2870, and 2880 respectively
+IL1CODE=1
+IL2CODE=1
+# type of top decay: set TOPDECAY=Wb to allow only t->Wb decays; set
+# TOPDECAY=ALL to allow all t->W+down-type-quark decays. In the latter 
+# case, the flavour of the down quark is determined using the CKM
+# matrix elements entered here
+TOPDECAY=Wb
+# set WTTYPE=REMOVAL to perform the computation of the Wt cross section in
+# the Diagram Removal (DR) scheme. Set WTTYPE=SUBTRACTION to use the
+# Diagram Subtraction (DS) scheme. See JHEP 0807:029,2008 [arXiv:0805.3067]
+WTTYPE=REMOVAL
+# ptveto value, used for factorization scale computation if FFACT<0, and
+# for renormalization scale computation if FREN<0. Effective only for Wt
+PTVETO=50
+# incoming left beam
+PART1=P
+# incoming right beam
+PART2=P
+# PDF group name; unused when linked to LHAPDF
+PDFGROUP=MRS
+# PDF set number; use LHAGLUE conventions when linked to LHAPDF
+PDFSET=10050
+# Lambda_5, used in NLO computations. A negative entry returns the value
+# resulting from PDF fit. 
+# WARNING: negative entries may lead to inconsistent results when using 
+# PDFLIB or LHAPDF: use a positive entry when in doubt
+LAMBDAFIVE=-1
+# Scheme
+SCHEMEOFPDF=MS
+# Lambda_5, used by HERWIG. A negative entry returns the HERWIG default value
+LAMBDAHERW=-1
+
+#
+#
+# other input parameters
+#
+#
+# prefix for BASES files; relevant to the integration step
+FPREFIX=bbar
+# prefix for event file; relevant to the event generation step
+EVPREFIX=bbar
+# prefix for the NLO and MC executables
+EXEPREFIX=bbar
+# number of events; set it to 0 to skip the event generation step
+NEVENTS=50000
+# 0 for weights=+1/-1, 1 for weights whose sum is the total rate
+WGTTYPE=1
+# seed for random numbers in the generation of events. 0 is default
+RNDEVSEED=0
+# set BASES=ON to perform integration, =OFF to skip the integration step
+BASES=ON
+# set PDFLIBRARY=THISLIB, =PDFLIB, or =LHAPDF to obtain PDFs from our 
+# private PDF library, from PDFLIB or from LHAPDF respectively
+PDFLIBRARY=LHAPDF
+# set HERPDF=DEFAULT to use HERWIG default PDFs, HERPDF=EXTPDF to use 
+# the same PDFs as used in the NLO; the setting of this parameter is 
+# independent of the setting of PDFLIBRARY
+HERPDF=DEFAULT
+# the variable HWPATH must be set equal to the name of directory 
+# which contains the version of HERWIG the user wants to link
+# to his code
+HWPATH="/scratch/aran/mcatNLO_342"
+# prepend this string to prefixes to avoid storage problems
+# leave blank to store event and data files in the running directory
+SCRTCH=
+# set the following variable equal to the list of object files that
+# you need when using HERWIG (for analysis purposes, for example)
+HWUTI="mcatnlo_hwanbtm_rb.o rbook_be.o rbook_fe.o"
+# set the following variable equal to the name of the version of 
+# HERWIG that you use 
+HERWIGVER="herwig6510.o"
+# set the following variable equal to the name of the directory where
+# the PDF grid files are stored. Effective only if PDFLIBRARY=THISLIB
+# In a CMMSW release, you can use:
+#PDFPATH=`scramv1 tool info lhapdf | grep LIBDIR | sed 's/=/\n/g' | tail -1`
+PDFPATH="/scratch/aran/mcatNLO_342/PDFgrids/"
+# set the following variable equal to the name of the directory where
+# the local version of LHAPDF is installed. We assume that the library,
+# PDF sets, and configuration script are located in lib/, 
+# share/lhapdf/PDFsets/, and bin/ respectively
+# In CMSSW, you can use:
+LHABASEPATH=`scramv1 tool info lhapdf | grep LHAPDF_BASE | sed 's/=/\n/g' | tail -1`
+#LHAPATH="/afs/cern.ch/cms/slc5_ia32_gcc434/external/lhapdf/5.6.0-cms2/"
+#LHABASEPATH="/afs/cern.ch/cms/slc5_ia32_gcc434/external/lhapdf/5.6.0-cms2/"
+#LHABASEPATH="/afs/cern.ch/sw/lcg/external/MCGenerators/lhapdf/5.8.4/x86_64-slc5-gcc43-opt"
+#LHABASEPATH="/scratch/aran/LHAPDF_584"
+LHAPATH="/afs/cern.ch/cms/slc5_ia32_gcc434/external/lhapdf/5.6.0-cms2/share/lhapdf/PDFsets"
+# set LHAOFL=FREEZE to freeze PDFs from LHAPDF at the boundaries,
+# =EXTRAPOLATE otherwise. This variable is related to LHAPARM(18)
+LHAOFL=FREEZE
+# set the following variable equal to the names of the libraries which 
+# need be linked. Library names are separated by white spaces. 
+# Note: LHAPDF is a special case, and must not be included here
+#EXTRALIBS="Core Cint Hist Matrix MathCore RIO dl stdc++"
+EXTRALIBS=""
+# set the following variable equal to the paths to the libraries which 
+# need be linked. Library paths are separated by white spaces. 
+# Note: LHAPDF is a special case, and must not be included here
+#EXTRAPATHS="/afs/cern.ch/sw/lcg/app/releases/ROOT/5.20.00/slc4_ia32_gcc34/root/lib/"
+#EXTRAPATHS="/afs/cern.ch/sw/lcg/app/releases/ROOT/5.27.04/x86_64-slc5-gcc43-opt/root/lib/"
+EXTRAPATHS="/afs/cern.ch/sw/lcg/app/releases/ROOT/5.26.00/x86_64-slc5-gcc34-opt/root/lib/"
+# set the following variable equal to the paths to the directories which 
+# contain header files needed by C++ files. Directory names are separated 
+# by white spaces
+#INCLUDEPATHS="/afs/cern.ch/sw/lcg/app/releases/ROOT/5.20.00/slc4_ia32_gcc34/root/include/"
+#INCLUDEPATHS="/afs/cern.ch/sw/lcg/app/releases/ROOT/5.27.04/x86_64-slc5-gcc43-opt/root/include/"
+#INCLUDEPATHS="/afs/cern.ch/sw/lcg/app/releases/ROOT/5.26.00/x86_64-slc5-gcc34-opt/root/include/"
+#
+#
+#
+# NOW LOAD THE SCRIPTS: DO NOT REMOVE THESE LINES
+thisdir=`pwd`
+. $thisdir/MCatNLO.Script
+#
+#
+#
+#
+
+#
+#
+# HERE, WRITE THE NAME OF THE SHELL FUNCTION THAT YOU NEED TO
+# EXECUTE CHOOSING AMONG (ONLY ONE AT A TIME):
+#
+#    runMCatNLO  runNLO  runMC  compileNLO  compileMC
+#
+# THEIR MEANINGS ARE DESCRIBED IN WHAT FOLLOWS
+#
+#
+# the following compiles and runs both the NLO and MC codes
+# runMCatNLO
+
+# the following compiles and runs the NLO only (thus, the event file 
+# is written, but not read by HERWIG)
+runNLO
+
+# the following compiles and runs the MC only (thus, the event file must
+# be already present, otherwise the program crashes)
+#runMC
+
+# the following compiles NLO code
+# compileNLO
+
+# the following compiles MC code
+# compileMC
+
+#runMCatNLO

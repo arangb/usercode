@@ -1,0 +1,134 @@
+
+
+1. Produce MC@NLO events file:
+   Follow setup instructions of mcatnlo in CMS as in:
+   https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMCatNLOInterface
+   cd ~/scratch0/CMSSW_3_8_4/src/mcatnlo_342
+   del Linux/bbarNLO_EXE_LHAPDF ; bash MCatNLO_bbar.inputs    
+2. Shower the events with HERWIG:
+   https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideLHEInterface
+   cmsRun GeneratorInterface/MCatNLOInterface/test/testSourceAndHadronizer_cfg.py
+   2.a You can then analyze these events with something like: 
+   cmsRun analyzeEvents_cfg_py that uses the ZeeAnalyzer.cc module. 
+3  You want to pass to LHE format to start the RECO chain:
+   cmsRun GeneratorInterface/MCatNLOInterface/test/testWriter_cfg.py
+   This produces a default "writer.lhe" file
+   This file can now be read in by the LHESource module instead of MCatNLOSource in 
+   testSourceAndHadronizer_cfg.py, which I have renamed: 
+   cmsRun GeneratorInterface/MCatNLOInterface/test/testSourceAndHadronizer_lhe_cfg.py
+   Which finally produces a mcatnlo_bbar_fromlhe.root 
+4. Once you have the LHE file: 
+   Follow: https://twiki.cern.ch/twiki/bin/view/Sandbox/WprimeToWZGenerationInstructions#SignalGen
+   addpkg Configuration/Generator
+
+5. Edit bbar_7TeV_mcatnlo_cfi.py and bbar_7TeV_mcatnlo_cff.py
+
+cfi:
+
+import FWCore.ParameterSet.Config as cms
+
+source = cms.Source("LHESource",
+                            fileNames = 
+cms.untracked.vstring('file:/afs/cern.ch/user/a/aran/scratch0/CMSSW_3_8_4/src/bbar_10k_LHAPDF.lhe'),
+                            skipEvents=cms.untracked.uint32(0)
+)
+
+generator = cms.EDFilter("Herwig6HadronizerFilter",
+        comEnergy = cms.double(7000.0),
+        #crossSection = cms.untracked.double(0.523),
+        doMPInteraction = cms.bool(True),
+        emulatePythiaStatusCodes = cms.untracked.bool(True),
+        filterEfficiency = cms.untracked.double(1.0),
+        herwigHepMCVerbosity = cms.untracked.bool(False),
+        herwigVerbosity = cms.untracked.int32(0),
+        lhapdfSetPath = cms.untracked.string(''),
+        maxEventsToPrint = cms.untracked.int32(0),
+        printCards = cms.untracked.bool(False),
+        useJimmy = cms.bool(True),
+
+        HerwigParameters = cms.PSet(
+                herwigUEsettings = cms.vstring(
+                        'JMUEO     = 1       ! multiparton interaction model',
+                        'PTJIM     = 4.449   ! 2.8x(sqrt(s)/1.8TeV)^0.27 @ 10 TeV',
+                        'JMRAD(73) = 1.8     ! inverse proton radius squared',
+                        'PRSOF     = 0.0     ! prob. of a soft underlying event',
+                        'MAXER     = 1000000 ! max error'
+                ),
+                herwigMcatnlo = cms.vstring(
+                        'PTMIN      = 0.5    ! minimum pt in hadronic jet'
+                ),
+                parameterSets = cms.vstring('herwigUEsettings',
+                                            'herwigMcatnlo')
+        )
+)
+
+ProductionFilterSequence = cms.Sequence(generator)
+
+
+cff:
+
+import FWCore.ParameterSet.Config as cms
+
+generator = cms.EDFilter("Herwig6HadronizerFilter",
+        comEnergy = cms.double(7000.0),
+        #crossSection = cms.untracked.double(0.523),
+        doMPInteraction = cms.bool(True),
+        emulatePythiaStatusCodes = cms.untracked.bool(True),
+        filterEfficiency = cms.untracked.double(1.0),
+        herwigHepMCVerbosity = cms.untracked.bool(False),
+        herwigVerbosity = cms.untracked.int32(0),
+        lhapdfSetPath = cms.untracked.string(''),
+        maxEventsToPrint = cms.untracked.int32(0),
+        printCards = cms.untracked.bool(False),
+        useJimmy = cms.bool(True),
+
+        HerwigParameters = cms.PSet(
+                herwigUEsettings = cms.vstring(
+                        'JMUEO     = 1       ! multiparton interaction model',
+                        'PTJIM     = 4.449   ! 2.8x(sqrt(s)/1.8TeV)^0.27 @ 10 TeV',
+                        'JMRAD(73) = 1.8     ! inverse proton radius squared',
+                        'PRSOF     = 0.0     ! prob. of a soft underlying event',
+                        'MAXER     = 1000000 ! max error'
+                ),
+                herwigMcatnlo = cms.vstring(
+                        'PTMIN      = 0.5    ! minimum pt in hadronic jet'
+                ),
+                parameterSets = cms.vstring('herwigUEsettings',
+                                            'herwigMcatnlo')
+        )
+)
+
+
+
+6. Now run the full sequence from GEN to RECO:
+cmsDriver.py bbar_7TeV_mcatnlo_cfi.py -s GEN:ProductionFilterSequence,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,HLT:GRun,RECO 
+--conditions FrontierConditions_GlobalTag,MC_38Y_V11::All --datatier 'GEN-SIM-HLT-RECO' -n 10 --no_exec  
+
+For GlobalTag info:
+https://twiki.cern.ch/twiki/bin/viewauth/CMS/SWGuideFrontierConditions
+
+or use:
+cmsDriver.py bbar_7TeV_mcatnlo_cfi.py -s GEN:ProductionFilterSequence,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,HLT:GRun,RECO -n 10 --conditions FrontierConditions_GlobalTag,MC_38Y_V11::All --mc --datatier 'GEN-SIM-HLT-RECO' --eventcontent RECOSIM -n 10 --no_exec
+
+
+vvv--OLD--vvv
+I needed to:
+addpkg HLTrigger/Configuration
+cd HLTrigger/Configuration/python 
+wget http://cmssw.cvs.cern.ch/cgi-bin/cmssw.cgi/CMSSW/HLTrigger/Configuration/python/HLT_1E31_cff.py?revision=1.310.2.2&pathrev=CMSSW_3_8_3
+
+Otherwise the 384 release would complain that it could not find HLTrigger/Configuration/python/HLT_1E31_cff.py
+
+The output of the driver is this file: bbar_7TeV_mcatnlo_cfi_py_GEN_SIM_DIGI_L1_DIGI2RAW_RAW2DIGI_RECO_MC.py
+
+UPDATE: I had to run the cmsDriver.py command WITHOUT the HLT part because it was giving problems. 
+        Produced instead: bbar_7TeV_mcatnlo_cfi_py_GEN_SIM_DIGI_L1_DIGI2RAW_MC.py
+^^^--OLD--^^^
+
+7. Now run it:
+cmsRun bbar_7TeV_mcatnlo_cfi_py_GEN_SIM_DIGI_L1_DIGI2RAW_RAW2DIGI_RECO_MC.py >& reco.log
+
+Output will be in: bbar_7TeV_mcatnlo_cfi_py_GEN_SIM_DIGI_L1_DIGI2RAW_RAW2DIGI_RECO.root
+
+https://twiki.cern.ch/twiki/bin/view/CMS/RelValTesting#Testing_for_CMSSW_3_8_X_releases
+
