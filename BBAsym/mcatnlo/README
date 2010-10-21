@@ -5,18 +5,22 @@
    https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMCatNLOInterface
    cd ~/scratch0/CMSSW_3_8_4/src/mcatnlo_342
    del Linux/bbarNLO_EXE_LHAPDF ; bash MCatNLO_bbar.inputs    
+
+[
 2. Shower the events with HERWIG:
    https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideLHEInterface
    cmsRun GeneratorInterface/MCatNLOInterface/test/testSourceAndHadronizer_cfg.py
    2.a You can then analyze these events with something like: 
    cmsRun analyzeEvents_cfg_py that uses the ZeeAnalyzer.cc module. 
+]
+
 3  You want to pass to LHE format to start the RECO chain:
    cmsRun GeneratorInterface/MCatNLOInterface/test/testWriter_cfg.py
    This produces a default "writer.lhe" file
-   This file can now be read in by the LHESource module instead of MCatNLOSource in 
+   [This file can now be read in by the LHESource module instead of MCatNLOSource in 
    testSourceAndHadronizer_cfg.py, which I have renamed: 
    cmsRun GeneratorInterface/MCatNLOInterface/test/testSourceAndHadronizer_lhe_cfg.py
-   Which finally produces a mcatnlo_bbar_fromlhe.root 
+   Which finally produces a mcatnlo_bbar_fromlhe.root]
 4. Once you have the LHE file: 
    Follow: https://twiki.cern.ch/twiki/bin/view/Sandbox/WprimeToWZGenerationInstructions#SignalGen
    addpkg Configuration/Generator
@@ -98,37 +102,40 @@ generator = cms.EDFilter("Herwig6HadronizerFilter",
         )
 )
 
+#### Saw this, which could be useful:
+process.leptonfilter = cms.EDFilter("MCParticlePairFilter",
+    Status = cms.untracked.vint32(3, 3),
+    ParticleID1 = cms.untracked.vint32(11, -11, 13, -13, 15, -15),
+    ParticleID2 = cms.untracked.vint32(11, -11, 13, -13, 15, -15)
+)
+process.neutrinofilter = cms.EDFilter("MCParticlePairFilter",
+    Status = cms.untracked.vint32(3, 3),
+    ParticleID1 = cms.untracked.vint32(12, -12, 14, -14, 16, -16),
+    ParticleID2 = cms.untracked.vint32(12, -12, 14, -14, 16, -16)
+)
 
+process.ProductionFilterSequence = cms.Sequence(process.generator*process.leptonfilter*process.neutrinofilter)
+#########################################
 
-6. Now run the full sequence from GEN to RECO:
-cmsDriver.py bbar_7TeV_mcatnlo_cfi.py -s GEN:ProductionFilterSequence,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,HLT:GRun,RECO 
---conditions FrontierConditions_GlobalTag,MC_38Y_V11::All --datatier 'GEN-SIM-HLT-RECO' -n 10 --no_exec  
+6. Now run the full sequence from GEN TO RAW:
+https://twiki.cern.ch/twiki/bin/view/Main/PrivateMCProduction
+
+cmsDriver.py bbar_7TeV_mcatnlo_cfi.py --eventcontent FEVTSIM --fileout=gen_raw_hlt.root --python_filename=gen_raw_hlt.py -s GEN:ProductionFilterSequence,SIM,DIGI,L1,DIGI2RAW,HLT:GRun --datatier GEN-SIM-RAW-HLT --conditions FrontierConditions_GlobalTag,MC_38Y_V11::All -n 10 --no_exec
 
 For GlobalTag info:
 https://twiki.cern.ch/twiki/bin/viewauth/CMS/SWGuideFrontierConditions
 
-or use:
-cmsDriver.py bbar_7TeV_mcatnlo_cfi.py -s GEN:ProductionFilterSequence,SIM,DIGI,L1,DIGI2RAW,RAW2DIGI,HLT:GRun,RECO -n 10 --conditions FrontierConditions_GlobalTag,MC_38Y_V11::All --mc --datatier 'GEN-SIM-HLT-RECO' --eventcontent RECOSIM -n 10 --no_exec
+and run it: cmsRun gen_raw_hlt.py
 
+which will produce gen_raw_hlt.root
 
-vvv--OLD--vvv
-I needed to:
-addpkg HLTrigger/Configuration
-cd HLTrigger/Configuration/python 
-wget http://cmssw.cvs.cern.ch/cgi-bin/cmssw.cgi/CMSSW/HLTrigger/Configuration/python/HLT_1E31_cff.py?revision=1.310.2.2&pathrev=CMSSW_3_8_3
+7. Now run the sequence from RAW TO RECO (apparently we cannot do GEN to RECO in one go):
+cmsDriver.py reco --eventcontent FEVTSIM --filein=file:gen_raw_hlt.root --python_filename=reco.py --fileout=reco.root -s RAW2DIGI,RECO --datatier GEN-SIM-HLT-RECO --conditions FrontierConditions_GlobalTag,MC_38Y_V11::All -n 10 --no_exec
 
-Otherwise the 384 release would complain that it could not find HLTrigger/Configuration/python/HLT_1E31_cff.py
+And run it:
+cmsRun reco.py
 
-The output of the driver is this file: bbar_7TeV_mcatnlo_cfi_py_GEN_SIM_DIGI_L1_DIGI2RAW_RAW2DIGI_RECO_MC.py
-
-UPDATE: I had to run the cmsDriver.py command WITHOUT the HLT part because it was giving problems. 
-        Produced instead: bbar_7TeV_mcatnlo_cfi_py_GEN_SIM_DIGI_L1_DIGI2RAW_MC.py
-^^^--OLD--^^^
-
-7. Now run it:
-cmsRun bbar_7TeV_mcatnlo_cfi_py_GEN_SIM_DIGI_L1_DIGI2RAW_RAW2DIGI_RECO_MC.py >& reco.log
-
-Output will be in: bbar_7TeV_mcatnlo_cfi_py_GEN_SIM_DIGI_L1_DIGI2RAW_RAW2DIGI_RECO.root
+Output will be: reco.root
 
 https://twiki.cern.ch/twiki/bin/view/CMS/RelValTesting#Testing_for_CMSSW_3_8_X_releases
 
