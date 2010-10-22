@@ -21,115 +21,29 @@
    testSourceAndHadronizer_cfg.py, which I have renamed: 
    cmsRun GeneratorInterface/MCatNLOInterface/test/testSourceAndHadronizer_lhe_cfg.py
    Which finally produces a mcatnlo_bbar_fromlhe.root]
+
 4. Once you have the LHE file: 
-   Follow: https://twiki.cern.ch/twiki/bin/view/Sandbox/WprimeToWZGenerationInstructions#SignalGen
-   addpkg Configuration/Generator
+   We follow: https://twiki.cern.ch/twiki/bin/view/Sandbox/WprimeToWZGenerationInstructions#SignalGen
 
-5. Edit bbar_7TeV_mcatnlo_cfi.py and bbar_7TeV_mcatnlo_cff.py
-
-cfi:
-
-import FWCore.ParameterSet.Config as cms
-
-source = cms.Source("LHESource",
-                            fileNames = 
-cms.untracked.vstring('file:/afs/cern.ch/user/a/aran/scratch0/CMSSW_3_8_4/src/bbar_10k_LHAPDF.lhe'),
-                            skipEvents=cms.untracked.uint32(0)
-)
-
-generator = cms.EDFilter("Herwig6HadronizerFilter",
-        comEnergy = cms.double(7000.0),
-        #crossSection = cms.untracked.double(0.523),
-        doMPInteraction = cms.bool(True),
-        emulatePythiaStatusCodes = cms.untracked.bool(True),
-        filterEfficiency = cms.untracked.double(1.0),
-        herwigHepMCVerbosity = cms.untracked.bool(False),
-        herwigVerbosity = cms.untracked.int32(0),
-        lhapdfSetPath = cms.untracked.string(''),
-        maxEventsToPrint = cms.untracked.int32(0),
-        printCards = cms.untracked.bool(False),
-        useJimmy = cms.bool(True),
-
-        HerwigParameters = cms.PSet(
-                herwigUEsettings = cms.vstring(
-                        'JMUEO     = 1       ! multiparton interaction model',
-                        'PTJIM     = 4.449   ! 2.8x(sqrt(s)/1.8TeV)^0.27 @ 10 TeV',
-                        'JMRAD(73) = 1.8     ! inverse proton radius squared',
-                        'PRSOF     = 0.0     ! prob. of a soft underlying event',
-                        'MAXER     = 1000000 ! max error'
-                ),
-                herwigMcatnlo = cms.vstring(
-                        'PTMIN      = 0.5    ! minimum pt in hadronic jet'
-                ),
-                parameterSets = cms.vstring('herwigUEsettings',
-                                            'herwigMcatnlo')
-        )
-)
-
-ProductionFilterSequence = cms.Sequence(generator)
+   Create a file called bbar_7TeV_mcatnlo_cfi.py (this file will be read by cmsDriver, and it can be in Configuration/Generator/python/ to be picked up by default, or just anywhere in your area).
+   
+   You can see what it looks like here:
+   http://cmssw.cvs.cern.ch/cgi-bin/cmssw.cgi/UserCode/AranGB/BBAsym/mcatnlo/bbar_7TeV_mcatnlo_cfi.py?view=markup
 
 
-cff:
+5. Now run the full sequence from GEN TO RAW:
+   https://twiki.cern.ch/twiki/bin/view/Main/PrivateMCProduction
 
-import FWCore.ParameterSet.Config as cms
+cmsDriver.py ./bbar_7TeV_mcatnlo_cfi.py --eventcontent FEVTSIM --fileout=gen_raw_hlt.root --python_filename=gen_raw_hlt.py -s GEN:ProductionFilterSequence,SIM,DIGI,L1,DIGI2RAW,HLT:GRun --datatier GEN-SIM-RAW-HLT --conditions FrontierConditions_GlobalTag,MC_38Y_V11::All -n 10 --no_exec
 
-generator = cms.EDFilter("Herwig6HadronizerFilter",
-        comEnergy = cms.double(7000.0),
-        #crossSection = cms.untracked.double(0.523),
-        doMPInteraction = cms.bool(True),
-        emulatePythiaStatusCodes = cms.untracked.bool(True),
-        filterEfficiency = cms.untracked.double(1.0),
-        herwigHepMCVerbosity = cms.untracked.bool(False),
-        herwigVerbosity = cms.untracked.int32(0),
-        lhapdfSetPath = cms.untracked.string(''),
-        maxEventsToPrint = cms.untracked.int32(0),
-        printCards = cms.untracked.bool(False),
-        useJimmy = cms.bool(True),
-
-        HerwigParameters = cms.PSet(
-                herwigUEsettings = cms.vstring(
-                        'JMUEO     = 1       ! multiparton interaction model',
-                        'PTJIM     = 4.449   ! 2.8x(sqrt(s)/1.8TeV)^0.27 @ 10 TeV',
-                        'JMRAD(73) = 1.8     ! inverse proton radius squared',
-                        'PRSOF     = 0.0     ! prob. of a soft underlying event',
-                        'MAXER     = 1000000 ! max error'
-                ),
-                herwigMcatnlo = cms.vstring(
-                        'PTMIN      = 0.5    ! minimum pt in hadronic jet'
-                ),
-                parameterSets = cms.vstring('herwigUEsettings',
-                                            'herwigMcatnlo')
-        )
-)
-
-#### Saw this, which could be useful:
-process.leptonfilter = cms.EDFilter("MCParticlePairFilter",
-    Status = cms.untracked.vint32(3, 3),
-    ParticleID1 = cms.untracked.vint32(11, -11, 13, -13, 15, -15),
-    ParticleID2 = cms.untracked.vint32(11, -11, 13, -13, 15, -15)
-)
-process.neutrinofilter = cms.EDFilter("MCParticlePairFilter",
-    Status = cms.untracked.vint32(3, 3),
-    ParticleID1 = cms.untracked.vint32(12, -12, 14, -14, 16, -16),
-    ParticleID2 = cms.untracked.vint32(12, -12, 14, -14, 16, -16)
-)
-
-process.ProductionFilterSequence = cms.Sequence(process.generator*process.leptonfilter*process.neutrinofilter)
-#########################################
-
-6. Now run the full sequence from GEN TO RAW:
-https://twiki.cern.ch/twiki/bin/view/Main/PrivateMCProduction
-
-cmsDriver.py bbar_7TeV_mcatnlo_cfi.py --eventcontent FEVTSIM --fileout=gen_raw_hlt.root --python_filename=gen_raw_hlt.py -s GEN:ProductionFilterSequence,SIM,DIGI,L1,DIGI2RAW,HLT:GRun --datatier GEN-SIM-RAW-HLT --conditions FrontierConditions_GlobalTag,MC_38Y_V11::All -n 10 --no_exec
-
-For GlobalTag info:
-https://twiki.cern.ch/twiki/bin/viewauth/CMS/SWGuideFrontierConditions
+   For GlobalTag info:
+   https://twiki.cern.ch/twiki/bin/viewauth/CMS/SWGuideFrontierConditions
 
 and run it: cmsRun gen_raw_hlt.py
 
 which will produce gen_raw_hlt.root
 
-7. Now run the sequence from RAW TO RECO (apparently we cannot do GEN to RECO in one go):
+6. Now run the sequence from RAW TO RECO (apparently we cannot do GEN to RECO in one go):
 cmsDriver.py reco --eventcontent FEVTSIM --filein=file:gen_raw_hlt.root --python_filename=reco.py --fileout=reco.root -s RAW2DIGI,RECO --datatier GEN-SIM-HLT-RECO --conditions FrontierConditions_GlobalTag,MC_38Y_V11::All -n 10 --no_exec
 
 And run it:
