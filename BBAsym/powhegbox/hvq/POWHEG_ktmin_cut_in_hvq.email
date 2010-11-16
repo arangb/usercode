@@ -1,0 +1,153 @@
+Subject: Re: POWHEG ktmin cut in hvq
+From: Paolo Nason <Paolo.Nason@mib.infn.it>
+Date: Tue, 16 Nov 2010 15:35:38 +0100
+To: Aran Garcia-Bellido <aran@pas.rochester.edu>
+
+Should work like this;
+Cheers,
+Paolo
+
+On Tue, 2010-11-16 at 14:02 +0100, Aran Garcia-Bellido wrote:
+> > Hi Paolo,
+> > Ah! I see that the fact formula is different from the one in your
+> > first email. 
+> > 
+> > Here is my modified subroutine:
+> >      subroutine born_suppression(fact)
+> >       implicit none
+> >       include 'nlegborn.h'
+> >       include '../include/pwhg_flst.h'
+> >       include '../include/pwhg_kn.h'
+> >       logical ini
+> >       data ini/.true./
+> >       real * 8 fact,pt2supp,powheginput,pt,m2,ppp
+> >       save ini,pt2supp,pt,ppp
+> >       if (ini) then
+> >          pt = powheginput("#bornsuppfact")
+> >          ppp= powheginput("#bornexponent")
+> >          ini = .false.
+> >          pt2supp = pt**2
+> >          write(*,*) 'Born: Initialized with suppression factor pt=',pt
+> >          write(*,*) 'Born: Initialized with exponent ppp=',ppp
+> >       endif
+> >       if (pt.lt.0) then
+> >          fact=1d0
+> >       else
+> > c        AGB: Change this to apply a min mass cut
+> > c        pt2=kn_pborn(1,3)**2+kn_pborn(2,3)**2+kn_masses(3)**2
+> > c        fact=(pt2/(pt2+pt2supp))**3
+> > c        WARNING: This will create weighted events
+> > c        Outgoing partons mass squared:
+> >          m2=((kn_pborn(0,3)+kn_pborn(0,4))**2-
+> >      &       (kn_pborn(1,3)+kn_pborn(1,4))**2-
+> >      &       (kn_pborn(2,3)+kn_pborn(2,4))**2-
+> >      &       (kn_pborn(3,3)+kn_pborn(3,4))**2)
+> > c        Suppression factor:
+> >          fact=( m2/(m2-pt2supp) )**ppp
+> >       endif
+> >       end
+> > 
+> > Using pt=100 and ppp=3 I get a lot of NAN values, but with ppp=2
+> > everything looks fine. I'll produce the Mbb plot to take a look at
+> > possible values for ppp. 
+> > 
+> > Thanks!
+> > Aran
+> > 
+> > Paolo Nason wrote: 
+>> > > On Tue, 2010-11-16 at 10:16 +0100, Aran Garcia-Bellido wrote:
+>> > >   
+>>> > > > Hello Paolo,
+>>> > > > Thank you for the reply. 
+>>> > > > 
+>>> > > > In the subroutine born_suppression I always get that pt=-1000000. so
+>>> > > > the "else" expression is never executed. 
+>>> > > > You mean I should change the fact=1.d0 to the formula you gave me,
+>>> > > > right? 
+>>> > > >     
+>> > > 
+>> > > powheginput looks into the file powheg.input for the token bornsuppfact
+>> > > (look in the manual). If it does not find it it returns -1000000.
+>> > > If you put a line
+>> > > 
+>> > > bornsuppfact 100
+>> > > 
+>> > > (for example) in the powheg.input file it will return 100 (>0), and it
+>> > > picks the else clause of the if statement. Then you decide what factor
+>> > > you want (now it is pt2 of the heavy quark).
+>> > > 
+>> > > Look at some plot of the invariant mass of the b bbar pair. Suppose it
+>> > > goes like M^(-n). Then you want
+>> > > 
+>> > > fact=( m2/(m2+pt2supp) )^(n/2)
+>> > > 
+>> > > to compensate for that. m2 is the invariant mass of the heavy flavour
+>> > > pair in the underlying Born configuration; kn_pborn(mu,j), mu=0,1,2,3 (0
+>> > > is time) are the momenta of the incoming partons (j=1,2) and of the
+>> > > outgoing heavy quarks (j=3,4) in the underlying Born configuration. So
+>> > > 
+>> > > m2=(kn_pborn(0,3)+kn_pborn(0,4))2-
+>> > > Sum_i=1,3 (kn_pborn(i,3)+kn_pborn(i,4))2
+>> > > 
+>> > > Send me the born_suppression routine at the end, so that I can check it;
+>> > > 
+>> > > Cheers,
+>> > > Paolo
+>> > > 
+>> > >   
+>>> > > > Best,
+>>> > > > Aran
+>>> > > > 
+>>> > > > 
+>>> > > > Paolo Nason wrote: 
+>>> > > >     
+>>>> > > > > No, there is no such thing in heavy flavours. You could, however,
+>>>> > > > > generate weighted events if you use the hvq package within the
+>>>> > > > > POWHEG-BOX. In this case you should set the subroutine born_suppression
+>>>> > > > > (in Born.f) to return a suppression factor that enhances the high mass
+>>>> > > > > region. In other words, the factor should be something like
+>>>> > > > > 
+>>>> > > > > fact=((kn_pborn(0,3)+kn_pborn(0,4))**2-(kn_pborn(1,3)+kn_pborn(1,4))**2
+>>>> > > > > -(kn_pborn(2,3)+kn_pborn(2,4))**2-(kn_pborn(3,3)+kn_pborn(3,4))**2)**ppp
+>>>> > > > > 
+>>>> > > > > where ppp is an appropriate power. With an appropriate choice of ppp you
+>>>> > > > > will populate uniformly all regions of invariant mass for the b b pair.
+>>>> > > > > 
+>>>> > > > > However, when this is set, you will get weighted events. Look at our
+>>>> > > > > paper on Z+jet production (look for Alioli et al) to find a more
+>>>> > > > > detailed explanation on how that works.
+>>>> > > > > 
+>>>> > > > > Best regards,
+>>>> > > > > Paolo
+>>>> > > > > 
+>>>> > > > > 
+>>>> > > > > On Mon, 2010-11-15 at 17:36 +0100, Aran Garcia-Bellido wrote:
+>>>> > > > >   
+>>>> > > > >       
+>>>>> > > > > > Dear POWHEG authors,
+>>>>> > > > > > I am trying to generate b-bbar events for the CMS collaboration with
+>>>>> > > > > > POWHEG, but since this is for a search for heavy resonances, I would
+>>>>> > > > > > like to only generate events with high invariant bb mass, or some sort
+>>>>> > > > > > of minimum kT cut. I see that the Zj, VBF_H and Dijet executables have
+>>>>> > > > > > a new flag "bornktmin" exactly to do this. 
+>>>>> > > > > > 
+>>>>> > > > > > But the hvq directory, which I need to use for bbbar, doesn't have
+>>>>> > > > > > this. The only similar thing I found was in line 34 of
+>>>>> > > > > > hvq/init_processes.f:
+>>>>> > > > > > kn_minmass=2*qmass
+>>>>> > > > > > 
+>>>>> > > > > > Would it be ok to change that kn_minmass to, say, 500 GeV instead of
+>>>>> > > > > > twice the mass of the bquark?
+>>>>> > > > > > 
+>>>>> > > > > > Let me know if this would lead to correct results. 
+>>>>> > > > > > 
+>>>>> > > > > > 
+>>>>> > > > > > Thank you,
+>>>>> > > > > > Aran Garcia-Bellido
+>>>>> > > > > > 
+>>>>> > > > > >     
+>>>>> > > > > >         
+>> > > 
+>> > >   
+
+-- Paolo Nason, INFN, sez. di Milano Bicocca, Università di Milano-Bicocca, Dip. di Fisica "G. Occhialini", Piazza della Scienza, 3 20126 Milano Phone: +39-02-64482541. Fax: +39-02-64482582. 
