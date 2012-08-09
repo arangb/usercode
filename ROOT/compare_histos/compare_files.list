@@ -1,0 +1,76 @@
+#
+# Config file for compare_histos.C macro
+#
+
+#Output.File: overlay_plots.root
+#Global.Normalization: 100
+
+#
+# Type can be: Legend (simple legend with the title for each line) = OverlayLines
+#              StatBox (one statbox for each line) = Overlay = OverlayLinesWithStatBoxes
+#              PrintYields_hb (no plots, prints pretty table of yields)
+#              Add (to do the stacking data-bkg comparison) 
+#              Ratio (will plot the ratio of the first file divided by the sum of the other files, for each plot)
+#Histo.Type: StatBox
+# If you set the Type here, it overrides the commandline.
+# Be careful with PlotOnlyHistosWithName! If you leave it blank, it won't plot anything, so you might want to comment out the if with match_only_histo in compare_histos.C
+#PlotOnlyHistosWithName: metSign
+# If there is a Tree, you need to specify it here:
+Tree.TreeName: AngularInfo
+Tree.LeafWeight: weight
+Tree.Cut: ptmzzNoKinFit<200
+#
+# The files for input
+#
+Files.Number: 4
+
+#Files.1.Name: /scratch/aran/jetpull/wbb_nobtag_Topo.root
+Files.1.Name: /afs/cern.ch/user/p/pablo79/public/forAran/analyzer_trees_multCands/summer11_Zjets_lowmassDY_20120315_2b_PRESEL.root
+#Files.1.Name: /scratch/aran/jetpull/p20_MU_wbb_EqTwoTag_EqTwoFourJet_zero_Topo.root
+Files.1.BaseDir:
+Files.1.Title: Z+jets
+Files.1.Factor: 1
+Files.1.Color: 1
+Files.1.Style: 1
+#Files.1.PlotErrors: 1 
+
+#Files.2.Name: /scratch/aran/jetpull/tb_nobtag_Topo.root
+Files.2.Name: /afs/cern.ch/user/p/pablo79/public/forAran/analyzer_trees_multCands/summer11_TTbarIncl_20120315_2b_PRESEL.root
+#Files.2.Name: /scratch/aran/jetpull/p20_MU_tb_EqTwoTag_EqTwoFourJet/p20_MU_tb_EqTwoTag_EqTwoFourJet_zero_Topo.root
+Files.2.BaseDir:
+Files.2.Title: t#bar{t}
+Files.2.Factor: 1
+Files.2.Color: 2
+Files.2.Style: 2
+
+Files.3.Name: /afs/cern.ch/user/p/pablo79/public/forAran/analyzer_trees_multCands/summer11_Zjets_lowmassDY_20120315_2b_PRESEL.root
+Files.3.BaseDir:
+Files.3.Title: BKGZ+jets
+Files.3.Factor: 1
+Files.3.Color: 5
+Files.3.Style: 1
+
+Files.4.Name: /afs/cern.ch/user/p/pablo79/public/forAran/analyzer_trees_multCands/summer11_SMHiggs_130GeV_20120315_2b_PRESEL.root
+Files.4.BaseDir:
+Files.4.Title: MH130 x 100
+Files.4.Factor: 500
+Files.4.Color: 4
+Files.4.Style: 1
+
+Files.5.Name:/prj_root/2627/higgs_write/aran/Feb7_skim/merged_files_bkup/wjets_plots.root
+Files.5.BaseDir: 
+Files.5.Title: W+jets
+Files.5.Factor: 1
+Files.5.Color: 32
+
+Files.6.Name:/prj_root/2627/higgs_write/aran/Feb7_skim/merged_files_bkup/diboson_plots.root
+Files.6.BaseDir: 
+Files.6.Title: Diboson
+Files.6.Factor: 1
+Files.6.Color: 36
+
+Files.7.Name:/prj_root/2627/higgs_write/aran/Feb7_skim/merged_files_bkup/ttbar_plots.root
+Files.7.BaseDir: 
+Files.7.Title: t#bar{t}
+Files.7.Factor: 1
+Files.7.Color: 33

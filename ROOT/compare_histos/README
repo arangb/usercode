@@ -1,0 +1,26 @@
+AGB July 11 2011
+
+You might want to use a newish version of ROOT, like 5.2X+ 
+I think you might see weird error messages when running on the default ROOT in some D0 releases. 
+
+This sets of macros are designed to take several root files (all with the same collection of TH1s or TTree in them) 
+and plot all the TH1s/branches one by one, doing line overlays, or data-bkg comparisons, or data vs sumbkg ratios.  
+It is all setup in the config file: compare_files.list
+You should set there: - the type of comparison you want: Histo.Type: Legend, StatBox, Add, Ratio
+                      - a total normalization if you want to compare shapes
+                      - to read all TH1s/branches in the file or only those matching: PlotOnlyHistosWithName: JetPull
+                      - the number of files to compare
+                      - the location of those files, the color and name (for the legend) of each sample, 
+                        and if there is a directory structure for the TH1s. You can also add a scale factor to each source. 
+
+Be careful with the PlotOnlyHistosWithName option. If you leave it empty, it won't plot anything! 
+So you should put something like "h_" or "lep"  to plot all histos starting with h_ or lep for example. 
+If you really want to plot all and they don't have commnon names, then you can comment out the if with match_only_histo in compare_histos.C.
+
+A usual way to run the script is:
+ ./compare_histos.sh -goodnbins=20 -force -outdir=myplots -config=compare_files.list
+
+You can get more info on the options if you run:
+./compare_histos.sh
+
+The output will be a directory (-outdir=myplots) with the gif and eps files and a index.html file to display all resulting plots. 
