@@ -36,14 +36,14 @@
 }
 */
 
-void OverlayHistos(TString mode="StatBox", TObjArray histograms, 
+void OverlayHistos(TString mode="StatBox", TObjArray histograms={}, 
 				TString title="Main Title",
 				TString xtitle="x title",
 				TString ytitle="y title",
-				Int_t palette[10],
-				Int_t styles[10],
-		        int with_errors[10],
-		        int goodNbins){
+				Int_t palette[10]={0},
+				Int_t styles[10]={0},
+		        int with_errors[10]={0},
+		        int goodNbins=20){
   // Number of histos to plot:
   Int_t ntot = histograms.GetEntries();
   
@@ -133,7 +133,7 @@ void OverlayHistos(TString mode="StatBox", TObjArray histograms,
   // If I use TH2F I sometimes get "Error in <TCanvas::Range>: illegal world coordinates range"
   TH1F * frame = new TH1F("frame","",nbinsx,xmin,xmax);
   frame->SetMaximum(ymax);
-  if ( xtitle = "" ) {// Use the main title as axis title if we don't have any
+  if ( xtitle == "" ) {// Use the main title as axis title if we don't have any
       frame->SetXTitle(title.Data());
   } else {
       frame->SetXTitle(xtitle.Data());
@@ -183,11 +183,11 @@ void OverlayHistos(TString mode="StatBox", TObjArray histograms,
 /// Do it now -- but for 2d. Here we just draw several of them.
 ///
 void OverlayHistos2D(TCanvas *c1,
-				      TObjArray histograms, 
+               TObjArray histograms={}, 
 		       TString title="Main Title",
 		       TString xtitle="x title",
 		       TString ytitle="y title",
-		       Int_t palette[10])
+		       Int_t palette[10]={0})
 {
   ///
   /// Calculate the number of rows
@@ -207,7 +207,7 @@ void OverlayHistos2D(TCanvas *c1,
   c1->Divide (columns, rows);
   gStyle->SetPalette(1);
   for (int i = 0; i < n; i++) {
-    TH2 *h = histograms[i];
+    TH2 *h = (TH2*) histograms[i];
     c1->cd(i+1);
     h->Draw("COLZ"); gPad->Update();
     TPaveStats* sta = (TPaveStats*) h->FindObject("stats");

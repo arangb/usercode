@@ -7,18 +7,24 @@
 /// 2008 Updated by Aran Garcia-Bellido to do the ratio of data vs bkgsum with Data_SumBkg_RatioHistos.C
 /// 2008 Updated by Aran Garcia-Bellido to print yields in nice table (analysis dependent)
 /// 2012 Updated by Skyler Kasko and Aran Garcia-Bellido to be used with TBranches, and not just TH1s
-/// 
+/// 2017 AGB: Updated to run in ROOT 6. If we encounter a branch that is a folder, it is skipped, unless it's of type 
+///           vector<TLorentzVector> in which case we plot its: @.size() 
+///
 ///  Given a list of directories -- which have the same structure -- traverse them
 /// making comparison plots (put all the plots on the same canvas) and write them out.
 ///
 ///  Sample config file can be found in the compare_files.list file.
 /// 
 #include <stdio.h>
+#include "AddHistos.C"
+#include "OverlayHistos.C"
+#include "Data_SumBkg_RatioHistos.C"
+
 
 class file_info : public TObject {
 public:
   inline file_info (void)
-    : _d(0), _offset(0), _startOffset(0), _dir_init (false), _factor(0), _color(1), _normalization(-1), _channel(-1), _style(0), _with_errors(0)
+    : _d(0), _offset(0), _startOffset(0), _dir_init(false), _factor(0), _color(1), _normalization(-1), _channel(-1), _style(0), _with_errors(0)
   {}
   inline file_info (const file_info &f)
     : _d(f._d), _offset(0), _startOffset(0), _dir_init (false), _title(f._title),
@@ -30,7 +36,7 @@ public:
       _with_errors(f._with_errors)
   {
   }
-  inline char *GetName (void) {
+  inline const char *GetName (void) {
     return _d->GetName();
   }
   TDirectory *_d;
@@ -63,16 +69,12 @@ TObjArray *LoadFiles (TEnv *params);
 TEnv *LoadParameters(TString configfile="");
 
 void PlotFiles (TObjArray *list, TDirectory *output, TEnv *params);
-void PlotHistoList (TObjArray &histograms, TObjArray *fileinfo, TEnv *params);
+void PlotHistoList (TObjArray &histograms, TObjArray *fileinfo, TDirectory *output_dir, TEnv *params, int *palette, int *channel, int *styles, int *with_errors);
 void PrintYields(TObjArray histograms, Int_t nsig=0);
 TString Make_LaTeX_Title(TString title);
 
 void compare_histos(TString configfile="")
 {
-  gROOT->ProcessLine(".L AddHistos.C");
-  gROOT->ProcessLine(".L OverlayHistos.C");
-  gROOT->ProcessLine(".L Data_SumBkg_RatioHistos.C");
-
   TEnv *params = LoadParameters(configfile);
 
   TObjArray *info = LoadFiles (params);
@@ -221,7 +223,7 @@ void PlotFiles (TObjArray *list, TDirectory *output_dir, TEnv *params)
   TKey *key;
   TString match_only_histo = params->GetValue("PlotOnlyHistosWithName", "");
   cout << " Will only plot histograms or leaves containing the string: " << match_only_histo << endl;
-  while (key = (TKey*)nextkey()) {
+  while (( key = (TKey*)nextkey() )) {
       TObject *obj = key->ReadObj();
       TString title = obj->GetName();//AGB temp 
       //if (!title.Contains("_ss")){//AGB only plot OS and sums
@@ -274,7 +276,7 @@ void PlotFiles (TObjArray *list, TDirectory *output_dir, TEnv *params)
 	cout << " This cut will be applied on the tree: " << weight_for_leaves << endl;
   }
   // We do for example: "(jetpt1>30&&jetpt2>30)*weight"
-  const TCanvas *c1 = 0; // We'll need this for drawing a Branch from a Tree into a histogram
+  TCanvas *c1 = 0; // We'll need this for drawing a Branch from a Tree into a histogram
   if (c1 == 0) c1 = new TCanvas ("c1");
   c1->Clear();
 
@@ -282,9 +284,17 @@ void PlotFiles (TObjArray *list, TDirectory *output_dir, TEnv *params)
   TTree *master_tree = (TTree*) master_file->_d->Get(tree_name); 
   TIter nextbranch = master_tree->GetListOfBranches();
   TBranch *branch;
-  while (branch = (TBranch*) nextbranch()){
+  while (( branch = (TBranch*) nextbranch() )) {
      TString brtitle = branch->GetName(); // brtitle is the name of the branch
      if (brtitle.Contains(match_only_histo)) {
+	 TString brtype = branch->GetLeaf(branch->GetName())->GetTypeName();
+	 if ( branch->IsFolder() ){
+	    if ( brtype == "vector<TLorentzVector>" ) {
+		cout << " Found folder branch: " << branch->GetName() << " is of type: " << brtype << endl; 
+	    } else {
+		continue;
+	    }
+	 }
 	 TObjArray sameHistos;
 	 bool good = true;
 	 int palette[100];
@@ -302,8 +312,12 @@ void PlotFiles (TObjArray *list, TDirectory *output_dir, TEnv *params)
                   //cout << tree->GetEntriesFast() << endl;
 		  TH1* h;
 		  if (iFile==0) {// Set histogram dimensions from the first source. 
-		  	tree->Draw(TString(brtitle + ">> h0_"+brtitle),weight_for_leaves);
-		        //tree->Draw("etalep1>>h0_etalep1","weight"); Draws leaf in new histogram
+		        if (brtype=="vector<TLorentzVector>") {
+			    tree->Draw(TString(brtitle + "@.size()>> h0_"+brtitle),weight_for_leaves);
+			} else {
+			    tree->Draw(TString(brtitle + ">> h0_"+brtitle),weight_for_leaves);
+			    //tree->Draw("etalep1>>h0_etalep1","weight"); Draws leaf in new histogram
+			}
 			h = (TH1F*) gDirectory->Get(TString("h0_"+brtitle)); // h points to the new histogram
 			if (h){
 			       nbins = h->GetNbinsX();
@@ -312,7 +326,11 @@ void PlotFiles (TObjArray *list, TDirectory *output_dir, TEnv *params)
                         }
 		  } else {
 			h = new TH1F("h","h",nbins,xmin,xmax); // Important to use "h" for Title and Name
-			tree->Draw(TString(brtitle + ">>h"),weight_for_leaves); // That way, h is unequivocal
+			if (brtype=="vector<TLorentzVector>") {
+			    tree->Draw(TString(brtitle + "@.size()>> h"),weight_for_leaves);
+			} else {
+			    tree->Draw(TString(brtitle + ">>h"),weight_for_leaves); // That way, h is unequivocal
+			}
 		  }
 		  if (h) {
 		      if (info->_normalization > 0) {
@@ -324,6 +342,7 @@ void PlotFiles (TObjArray *list, TDirectory *output_dir, TEnv *params)
 		      }
                       h->SetName(brtitle);
 		      h->SetTitle(brtitle);
+		      if (brtype=="vector<TLorentzVector>") h->SetTitle(brtitle+"SizeFromBranch");
 		      sameHistos.Add(h);
 		      //cout << iFile << "  Added histo " << h->GetName() << " " << h->Integral() << endl;
 		      palette[iFile] = info->_color;
@@ -346,7 +365,7 @@ void PlotHistoList (TObjArray &histograms, TObjArray *fileinfo, TDirectory *outp
   /// We'll just re-use a canvas to save with processing time
   ///
 
-  const TCanvas *c1 = 0;
+  TCanvas *c1 = 0;
   if (c1 == 0) c1 = new TCanvas ("c1");
   c1->Clear();
 
@@ -368,7 +387,8 @@ void PlotHistoList (TObjArray &histograms, TObjArray *fileinfo, TDirectory *outp
 
   for (int i = 0; i < histograms.GetEntriesFast(); i++) {
     TH1 *h = (TH1*) histograms[i];
-    file_info *f = (*fileinfo)[i];
+    //file_info *f = (*fileinfo)[i];
+    file_info *f = (file_info*)(*fileinfo)[i];
     h->SetName (f->_title);
     // h->SetStats(kFALSE);
   }
@@ -380,24 +400,24 @@ void PlotHistoList (TObjArray &histograms, TObjArray *fileinfo, TDirectory *outp
   TString type = params->GetValue("Histo.Type", "Overlay");
   int goodNbins = params->GetValue("Histo.GoodNbins", -1);
   if (type == "OverlayLines" || type == "Legend") {
-      if (h->InheritsFrom(TH2::Class())) {
+      if (histograms[0]->InheritsFrom(TH2::Class())) {
 	  OverlayHistos2D (c1, histograms, htitle, "", "", palette);
       } else {
 	  OverlayHistos("Legend",histograms, xtitle, "", "", palette, styles, with_errors, goodNbins);
       }
   } else if (type == "OverlayLinesWithStatBoxes" || type == "StatBox" || type == "Overlay") {
-      if (h->InheritsFrom(TH2::Class())) {
+      if (histograms[0]->InheritsFrom(TH2::Class())) {
 	  OverlayHistos2D (c1, histograms, htitle, "", "", palette);
       } else {
 	  OverlayHistos("StatBox",histograms, htitle, "", "", palette, styles, with_errors, goodNbins);
       }
   } else if (type == "Add") {
-      if (! h->InheritsFrom(TH2::Class())) {
+      if (! histograms[0]->InheritsFrom(TH2::Class())) {
 	  int nsig=1; // the number of signal histograms at the end of the array (they will be plotted as lines).
 	  AddHistos(histograms, htitle, "", "", nsig, palette);
       }
   } else if (type == "Ratio") {
-      if (! h->InheritsFrom(TH2::Class())) {
+      if (! histograms[0]->InheritsFrom(TH2::Class())) {
 	  Data_SumBkg_RatioHistos(histograms, htitle, "", "",palette);
       }
   } else if (type == "PrintYields") {// if we run it like this, then we can access also the TTrees.
@@ -410,7 +430,7 @@ void PlotHistoList (TObjArray &histograms, TObjArray *fileinfo, TDirectory *outp
           return;
       }
   } else {
-      cout << "Unknown type: " << type.Data() << ". Don't know what to do. " endl;
+      cout << "Unknown type: " << type.Data() << ". Don't know what to do. " << endl;
   }
   
   ///
@@ -444,7 +464,7 @@ void file_info::InitDirList (void)
   TIter nextKey (_d->GetListOfKeys());
   TKey *key;
   int index = 0;
-  while (key = (TKey*)nextKey()) { 
+  while (( key = (TKey*)nextKey() )) { 
     TObject *obj = key->ReadObj();
     if (obj->IsA()->InheritsFrom("TDirectory")) {
       ///
@@ -568,8 +588,8 @@ void PrintYields(TObjArray histograms, Int_t nsig){
     }
     // Finally, data:
     TH1F * h = (TH1F*) histograms[0];
-    printf ("%24s    %-6i \n",h->GetName(),h->GetEntries()); /// Use GetEntries instead of Integral
-    fprintf (out,"%24s  %6i ",h->GetName(),h->GetEntries());
+    printf ("%24s    %-6f \n",h->GetName(),h->GetEntries()); /// Use GetEntries instead of Integral
+    fprintf (out,"%24s  %6f ",h->GetName(),h->GetEntries());
     fprintf (out, "\\hline \n");
 }
 

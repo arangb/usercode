@@ -19,16 +19,18 @@
 // the third, etc ... so as to stack the histos. 
 // Then the usual procedure to make things nice! 
 
+void NiceAddEntry(TLegend* leg, TH1F* hist, TString name, TString type);
+
 void AddHistos(TObjArray histograms, 
 		       TString title="Main Title",
 		       TString xtitle="x title",
 		       TString ytitle="y title",
 		       Int_t nsig=0,
-		       Int_t palette[10]){
+		       Int_t palette[10]={0}){
  
   // Number of histos to plot:
   const Int_t ntot = histograms.GetEntries();
-  Double_t yield[ntot]=0.0;
+  Double_t yield[ntot]; 
   bool draw_legend = true;
   // nsig is the number of signal histograms at the end of the array. 
   //This is used to know how many histograms need to be drawn as lines (and not stacked up). 
@@ -138,11 +140,11 @@ void AddHistos(TObjArray histograms,
   ymax = TMath::Nint(ymax*1.15+1); // Make enough room for the big legend
   Int_t nbinsx = h0->GetXaxis()->GetNbins();
   Int_t nbinsy = 100; 
-  TString title = h0->GetTitle();
+  if (title=="") {title = h0->GetTitle();}
 
   // Now make the frame:
   TH2F * frame = new TH2F("frame","",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
-  if ( xtitle = "" ) {// Use the main title as axis title if we don't have any
+  if ( xtitle == "" ) {// Use the main title as axis title if we don't have any
     frame->SetXTitle(title.Data());
   } else {
     frame->SetXTitle(xtitle.Data());
@@ -234,7 +236,7 @@ void AddHistos2D (TCanvas *c1,
   c1->Divide (columns, rows);
   gStyle->SetPalette(1);
   for (int i = 0; i < n; i++) {
-    TH2 *h = histograms[i];
+    TH2 *h = (TH2*) histograms[i];
     c1->cd(i+1);
     h->Draw("COLZ");
     TLegend *lgd = new TLegend (0.7, 0.7, 0.89, 0.89);

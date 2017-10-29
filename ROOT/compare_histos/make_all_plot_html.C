@@ -11,6 +11,9 @@
 //   Now follows the more complex directory structure in the root files
 //   Will create teh directory if it sin't already there.
 
+void html_a_directory(TDirectory *f, TString path, TEnv *params);
+
+
 void make_all_plot_html(TString file,TString path)
 {
   ///
@@ -41,9 +44,9 @@ void make_all_plot_html(TString file,TString path)
 ///
 /// Process a directory recursively.
 ///
-void html_a_directory (TDirectory *f, TString &path, TEnv *params)
+void html_a_directory(TDirectory *f, TString path, TEnv *params)
 {
-  const TCanvas *c_h1 = 0;
+  TCanvas *c_h1 = 0;
   if (c_h1 == 0) {
     int x = params->GetValue("H1.XSize", 150);
     int y = params->GetValue("H1.YSize", 100);
@@ -89,15 +92,17 @@ void html_a_directory (TDirectory *f, TString &path, TEnv *params)
     if (obj->IsA()->InheritsFrom("TDirectory")) {
       TDirectory *d = static_cast<TDirectory*>(obj);
       html << "<br><a href=\"" << d->GetName() << "/\">" << d->GetName() << "</a>" << endl;
-      html_a_directory (d, path + "/" + d->GetName(), params);
+      html_a_directory(d, path + "/" + d->GetName(), params);
     }
 
     else if (obj->IsA()->InheritsFrom("TObjString")) {
       TObjString *s = static_cast<TObjString*>(obj);
       html << "<p><h2>" << key->GetName() << "</h2>" << endl;
-      html << "<blockquote><pre>" << static_cast<char*>(s->GetString())
-	   << "</pre></blockquote></p>"
-	   << endl;
+      //html << "<blockquote><pre>" << static_cast<char*>(s->GetString())
+	  // << "</pre></blockquote></p>"
+	  // << endl;
+      html << "<blockquote><pre>" << (s->GetString()).Data() << "</pre></blockquote></p>"<< endl;
+      
 
     }
 

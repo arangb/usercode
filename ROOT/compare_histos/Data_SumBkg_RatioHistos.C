@@ -10,11 +10,11 @@
 //  histos as the sum of backgrounds: it will then plot the ratio of DATA/SUMBKG
 //
 
-void Data_SumBkg_RatioHistos (TObjArray histograms, 
+void Data_SumBkg_RatioHistos (TObjArray histograms={}, 
 			      TString title="Main Title",
 			      TString xtitle="x title",
 			      TString ytitle="y title",
-			      Int_t palette[10])
+			      Int_t palette[10]={0})
 {
   // Number of histos to plot:
   Int_t ntot = histograms.GetEntries();
@@ -22,7 +22,7 @@ void Data_SumBkg_RatioHistos (TObjArray histograms,
   //
   // The data should be the first entry! 
   //
-  TH1 *data = histograms[0];
+  TH1 *data = (TH1*) histograms[0];
   data->Sumw2();
   // We want the plots with 20 bins:
   if (data->GetNbinsX()>20){
@@ -36,8 +36,8 @@ void Data_SumBkg_RatioHistos (TObjArray histograms,
   bool good = true;
   Int_t nsum = 0;
   for (int i = 1; i < ntot; i++) {
-    TH1 *h = histograms[i];
-    TH1 *newh = h->Clone();
+    TH1 *h = (TH1*) histograms[i];
+    TH1 *newh = (TH1*) h->Clone();
     newh->Sumw2();
     // rebin:
     if (newh->GetNbinsX()>20){
