@@ -9,6 +9,7 @@
 /// 2012 Updated by Skyler Kasko and Aran Garcia-Bellido to be used with TBranches, and not just TH1s
 /// 2017 AGB: Updated to run in ROOT 6. If we encounter a branch that is a folder, it is skipped, unless it's of type 
 ///           vector<TLorentzVector> in which case we plot its: @.size() 
+///           Added capability to read EOS files at Fermilab
 ///
 ///  Given a list of directories -- which have the same structure -- traverse them
 /// making comparison plots (put all the plots on the same canvas) and write them out.
@@ -16,6 +17,7 @@
 ///  Sample config file can be found in the compare_files.list file.
 /// 
 #include <stdio.h>
+#include <iostream>
 #include "AddHistos.C"
 #include "OverlayHistos.C"
 #include "Data_SumBkg_RatioHistos.C"
@@ -123,7 +125,12 @@ TObjArray *LoadFiles (TEnv *params)
     TString fname (params->GetValue(bName+"Name", "bogus_file"));
     TString base (params->GetValue(bName+"BaseDir", "."));
 
-    TFile *f = new TFile (fname, "READ");
+    TFile *f;
+    if (fname.Contains("/store/user/")) { // This is at the LPC
+	f = TFile::Open("root://cmsxrootd.fnal.gov/"+fname, "READ");
+    } else {
+	f = new TFile (fname, "READ");
+    }
     f->cd(base);
 
     file_info *info = new file_info ();
